@@ -22,4 +22,5 @@ public class BaseEntity {
     @LastModifiedDate  //자동으로 updatedAt 이 채워짐
     private LocalDateTime updatedAt;
 
+
 }

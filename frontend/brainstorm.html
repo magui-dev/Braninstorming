@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>브레인스토밍 - 아이디어 생성기</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- 상단 네비게이션 -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <span class="logo-icon">💡</span>
+                <span class="logo-text">아이디어 생성기</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="index.html">홈으로</a></li>
+                <li><a href="#" onclick="resetBrainstorming()">다시 시작</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- 브레인스토밍 컨테이너 -->
+    <div class="chat-container">
+        <!-- 진행 상태 표시 -->
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-step active" id="step1">
+                <div class="step-circle">1</div>
+                <span>세션 시작</span>
+            </div>
+            <div class="progress-step" id="step2">
+                <div class="step-circle">2</div>
+                <span>목적 입력</span>
+            </div>
+            <div class="progress-step" id="step3">
+                <div class="step-circle">3</div>
+                <span>워밍업</span>
+            </div>
+            <div class="progress-step" id="step4">
+                <div class="step-circle">4</div>
+                <span>자유연상</span>
+            </div>
+            <div class="progress-step" id="step5">
+                <div class="step-circle">5</div>
+                <span>아이디어 생성</span>
+            </div>
+        </div>
+
+        <!-- 채팅 박스 -->
+        <div class="chat-box" id="chatBox">
+            <!-- JavaScript로 동적 생성 -->
+        </div>
+
+        <!-- 입력 섹션 -->
+        <div class="input-section" id="inputSection">
+            <input 
+                type="text" 
+                id="userInput" 
+                class="input-field" 
+                placeholder="여기에 입력하세요..."
+                onkeypress="handleEnter(event)"
+            >
+            <input 
+                type="text" 
+                id="associationInput" 
+                class="input-field" 
+                placeholder="키워드 입력 후 Enter..."
+                onkeypress="handleAssociationEnter(event)"
+                style="display: none; flex: 1;"
+            >
+            <button class="send-button" onclick="sendMessage()" id="sendBtn">전송</button>
+        </div>
+
+        <!-- 자유연상 특별 입력 (Q3) -->
+        <div class="association-section" id="associationSection" style="display: none;">
+            <p class="association-guide">
+                <strong>지금부터 떠오르는 무엇이든 자유롭게 많이 적어주세요.</strong><br>
+                현재 0개 입력
+            </p>
+            
+            <!-- 태그가 위에 쌓이는 영역 -->
+            <div class="association-tags-display" id="associationTags">
+                <!-- 태그가 여기에 추가됨 -->
+            </div>
+            
+            <!-- 입력창 -->
+            <div class="association-input-container">
+                <input 
+                    type="text" 
+                    id="associationInput" 
+                    class="input-field" 
+                    placeholder="키워드 입력 후 Enter..."
+                    onkeypress="handleAssociationEnter(event)"
+                    style="flex: 1;"
+                >
+            </div>
+            
+            <!-- 큰 생성 버튼 -->
+            <button 
+                class="association-submit-button" 
+                id="submitAssociations" 
+                onclick="submitAssociations()"
+                disabled
+            >
+                🎨 생성 (0개)
+            </button>
+        </div>
+    </div>
+
+    <script src="js/brainstorm.js"></script>
+</body>
+</html>

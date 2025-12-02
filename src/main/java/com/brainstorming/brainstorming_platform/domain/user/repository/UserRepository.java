@@ -1,5 +1,6 @@
 package com.brainstorming.brainstorming_platform.domain.user.repository;
 
+import com.brainstorming.brainstorming_platform.domain.user.entity.LoginProvider;
 import com.brainstorming.brainstorming_platform.domain.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -13,4 +14,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     //이메일 존재 여부 확인
     boolean existsByEmail(String email);
 
+    //  OAuth 2.0 사용
+    Optional<User> findByProviderAndProviderId(
+            LoginProvider provider,
+            String providerId);
 }

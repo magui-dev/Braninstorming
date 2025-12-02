@@ -39,3 +39,7 @@ out/
 
 # Python service env 파일은 버전관리 안 함
 python-service/.env
+
+
+##application.yaml
+application.yaml
