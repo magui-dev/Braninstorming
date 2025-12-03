@@ -15,8 +15,10 @@
                 <span class="logo-text">아이디어 생성기</span>
             </div>
             <ul class="nav-menu">
-                <li><a href="#" onclick="alert('로그인 기능 준비 중')">로그인</a></li>
-                <li><a href="#" onclick="alert('문의하기 기능 준비 중')">문의하기</a></li>
+                <li id="loginBtn"><a href="#" onclick="showLoginModal()">로그인</a></li>
+                <li id="userInfo" style="display: none;"><a href="#" id="userName">OOO님</a></li>
+                <li id="logoutBtn" style="display: none;"><a href="#" onclick="logout()">로그아웃</a></li>
+                <li><a href="inquiry.html">문의하기</a></li>
                 <li><a href="#" onclick="toggleSidebar()">나의 아이디어</a></li>
             </ul>
         </div>
@@ -29,19 +31,7 @@
             <button onclick="toggleSidebar()" class="close-btn">✕</button>
         </div>
         <div class="sidebar-content">
-            <div class="idea-item">
-                <div class="idea-date">2024.12.01</div>
-                <div class="idea-title">유튜브 컨텐츠 아이디어</div>
-            </div>
-            <div class="idea-item">
-                <div class="idea-date">2024.11.30</div>
-                <div class="idea-title">소상공인 마케팅 전략</div>
-            </div>
-            <div class="idea-item">
-                <div class="idea-date">2024.11.29</div>
-                <div class="idea-title">사이드 프로젝트 아이디어</div>
-            </div>
-            <p class="empty-message" style="display: none;">저장된 아이디어가 없습니다.</p>
+            <p class="empty-message">저장된 아이디어가 없습니다.</p>
         </div>
     </div>
 
@@ -160,6 +150,23 @@
     <footer class="footer">
         <p>&copy; 2024 아이디어 생성기. All rights reserved.</p>
     </footer>
+
+    <!-- 로그인 모달 -->
+    <div id="loginModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 40px; border-radius: 12px; width: 90%; max-width: 400px; position: relative;">
+            <button onclick="closeLoginModal()" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 24px; cursor: pointer;">✕</button>
+            <h2 style="margin-bottom: 30px; text-align: center;">로그인</h2>
+            <a href="http://localhost:8080/oauth2/authorization/google" style="display: block; padding: 15px; margin-bottom: 10px; background: #4285f4; color: white; text-align: center; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                🔵 Google로 시작하기
+            </a>
+            <a href="http://localhost:8080/oauth2/authorization/kakao" style="display: block; padding: 15px; margin-bottom: 10px; background: #fee500; color: #191919; text-align: center; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                💬 Kakao로 시작하기
+            </a>
+            <a href="http://localhost:8080/oauth2/authorization/naver" style="display: block; padding: 15px; background: #03c75a; color: white; text-align: center; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                🟢 Naver로 시작하기
+            </a>
+        </div>
+    </div>
 
     <script src="js/main.js"></script>
 </body>

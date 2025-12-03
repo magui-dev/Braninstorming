@@ -27,5 +27,32 @@ public class Inquiry extends BaseEntity {
 
     private String reply;
 
+    /**
+     * 비지니스 로직 메서드 추가
+     * 관리자용 포함
+     */
+    /**
+     * 문의 수정
+     */
+    public void update(String title, String content) {
+        this.title = title;
+        this.content = content;
+    }
+
+    /**
+     * 관리자 답변 작성
+     */
+    public void reply(String replyContent) {
+        this.reply = replyContent;
+        this.status = InquiryStatus.ANSWERED;
+    }
+
+    /**
+     * 문의 종료
+     */
+    public void close() {
+        this.status = InquiryStatus.CLOSED;
+    }
+
 
 }

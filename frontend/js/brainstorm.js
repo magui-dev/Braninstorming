@@ -404,6 +404,28 @@ function displayIdeas(ideas) {
         // 직접 채팅박스에 추가 (메시지 버블 없이)
         chatBox.insertAdjacentHTML('beforeend', ideaHtml);
     });
+    
+    // 저장 버튼 추가
+    const saveButtonHtml = `
+        <div style="text-align: center; margin: 3rem 0 2rem 0;">
+            <button 
+                class="save-ideas-button" 
+                onclick="saveIdeas()" 
+                style="padding: 1.2rem 3rem; font-size: 1.2rem; font-weight: 600; color: white; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 12px; cursor: pointer; transition: all 0.3s;"
+                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.4)'"
+                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'"
+            >
+                💾 아이디어 저장하기
+            </button>
+            <p style="color: #7f8c8d; margin-top: 1rem; font-size: 0.95rem;">
+                로그인하면 아이디어를 저장하고 나중에 다시 볼 수 있어요!
+            </p>
+        </div>
+    `;
+    chatBox.insertAdjacentHTML('beforeend', saveButtonHtml);
+    
+    // ideas를 전역 변수로 저장 (저장 시 사용)
+    window.generatedIdeas = ideas;
 }
 
 // 아이디어 접기/펼치기
@@ -528,5 +550,103 @@ function updateProgress(step) {
 function resetBrainstorming() {
     if (confirm('브레인스토밍을 다시 시작하시겠습니까?')) {
         location.reload();
+    }
+}
+
+// ========================================
+// 아이디어 저장 (Spring Boot API)
+// ========================================
+async function saveIdeas() {
+    // 1. 로그인 확인
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+        alert('아이디어를 저장하려면 로그인이 필요합니다.');
+        if (confirm('로그인 페이지로 이동하시겠습니까?')) {
+            location.href = 'index.html';
+        }
+        return;
+    }
+    
+    // 2. 사용자 정보 가져오기
+    try {
+        const userResponse = await fetch('http://localhost:8080/api/auth/me', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!userResponse.ok) {
+            throw new Error('사용자 인증 실패');
+        }
+        
+        const currentUser = await userResponse.json();
+        
+        // 3. 아이디어 저장
+        if (!window.generatedIdeas || window.generatedIdeas.length === 0) {
+            alert('저장할 아이디어가 없습니다.');
+            return;
+        }
+        
+        showLoading('아이디어를 저장하는 중...');
+        
+        // 각 아이디어를 개별적으로 저장
+        const savePromises = window.generatedIdeas.map(async (idea, index) => {
+            const ideaData = {
+                userId: currentUser.userId,
+                title: `${idea.title}`,
+                content: JSON.stringify({
+                    description: idea.description,
+                    analysis: idea.analysis || '',
+                    generatedAt: new Date().toISOString()
+                }),
+                purpose: sessionId || 'brainstorm_session'
+            };
+            
+            const response = await fetch('http://localhost:8080/api/ideas', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(ideaData)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`아이디어 ${index + 1} 저장 실패`);
+            }
+            
+            return await response.json();
+        });
+        
+        await Promise.all(savePromises);
+        
+        hideLoading();
+        
+        // 4. Ephemeral RAG 세션 삭제
+        try {
+            console.log('🗑️ Ephemeral RAG 세션 삭제 시도...');
+            const deleteResponse = await fetch(`${API_BASE_URL}/session/${sessionId}`, {
+                method: 'DELETE'
+            });
+            
+            if (deleteResponse.ok) {
+                console.log('✅ Ephemeral RAG 세션 삭제 완료');
+            } else {
+                console.warn('⚠️ Ephemeral RAG 세션 삭제 실패 (무시)');
+            }
+        } catch (deleteError) {
+            console.warn('⚠️ Ephemeral RAG 세션 삭제 오류 (무시):', deleteError);
+        }
+        
+        alert('✅ 모든 아이디어가 저장되었습니다!\n\n홈 화면의 "나의 아이디어"에서 확인할 수 있습니다.');
+        
+        // 홈으로 이동
+        location.href = 'index.html';
+        
+    } catch (error) {
+        console.error('❌ 아이디어 저장 오류:', error);
+        hideLoading();
+        alert('❌ 아이디어 저장에 실패했습니다.\n\n' + error.message);
     }
 }

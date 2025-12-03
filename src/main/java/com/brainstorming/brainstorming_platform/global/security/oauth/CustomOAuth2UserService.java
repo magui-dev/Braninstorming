@@ -95,10 +95,32 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         /**
          * 6 . Spring Security 가 사용할 반환 객체 변환
-         *  TODO : 나중에 CustomOAuth2User 객체로 변경
+         * Provider 원본 데이터 말고, 우리가 파싱한 User 정보를 담아서 반환
          */
-        return oAuth2User;
-
+        
+        // attributes에 우리 User 정보 추가
+        Map<String, Object> modifiedAttributes = new java.util.HashMap<>(oAuth2User.getAttributes());
+        modifiedAttributes.put("userId", user.getUserId());
+        modifiedAttributes.put("email", user.getEmail());
+        modifiedAttributes.put("username", user.getUsername());
+        modifiedAttributes.put("provider", user.getProvider().name());
+        
+        // nameAttributeKey 가져오기 (Provider마다 다름: google="sub", kakao="id", naver="id")
+        String userNameAttributeName = userRequest.getClientRegistration()
+                .getProviderDetails()
+                .getUserInfoEndpoint()
+                .getUserNameAttributeName();
+        
+        log.info("nameAttributeKey: {}", userNameAttributeName);
+        
+        // DefaultOAuth2User로 반환 (우리 정보 포함)
+        return new org.springframework.security.oauth2.core.user.DefaultOAuth2User(
+                java.util.Collections.singleton(
+                        new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + user.getRole().name())
+                ),
+                modifiedAttributes,
+                userNameAttributeName
+        );
     }
 
     /**

@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 - 문의 관리</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .admin-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            padding-top: 100px;
+        }
+
+        .admin-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .admin-header h1 {
+            font-size: 2.5rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-number.pending { color: #f39c12; }
+        .stat-number.answered { color: #27ae60; }
+        .stat-number.closed { color: #95a5a6; }
+
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 1rem;
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .filter-btn {
+            padding: 1rem 2rem;
+            background: none;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #7f8c8d;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .filter-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .inquiry-table {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f8f9fa;
+            padding: 1.2rem;
+            text-align: left;
+            font-weight: 600;
+            color: #2c3e50;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        td {
+            padding: 1.2rem;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+            cursor: pointer;
+        }
+
+        .status-badge {
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .status-badge.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-badge.answered {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge.closed {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 900px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .modal-close {
+            font-size: 2rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #7f8c8d;
+        }
+
+        .inquiry-info {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .inquiry-content {
+            background: white;
+            padding: 1.5rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            line-height: 1.8;
+        }
+
+        .reply-section {
+            margin-top: 2rem;
+        }
+
+        .reply-form textarea {
+            width: 100%;
+            padding: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            resize: vertical;
+            min-height: 150px;
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #2c3e50;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <!-- 상단 네비게이션 -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo" onclick="location.href='index.html'" style="cursor: pointer;">
+                <span class="logo-icon">🔧</span>
+                <span class="logo-text">관리자 페이지</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="index.html">메인으로</a></li>
+                <li id="adminInfo"><a href="#" id="adminName">관리자님</a></li>
+                <li><a href="#" onclick="logout()">로그아웃</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- 메인 컨텐츠 -->
+    <div class="admin-container">
+        <div class="admin-header">
+            <h1>📋 문의 관리</h1>
+            <p>사용자 문의를 확인하고 답변하세요</p>
+        </div>
+
+        <!-- 통계 -->
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-number pending" id="statPending">0</div>
+                <div class="stat-label">답변 대기</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number answered" id="statAnswered">0</div>
+                <div class="stat-label">답변 완료</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number closed" id="statClosed">0</div>
+                <div class="stat-label">종료</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="statTotal">0</div>
+                <div class="stat-label">전체 문의</div>
+            </div>
+        </div>
+
+        <!-- 필터 -->
+        <div class="filter-tabs">
+            <button class="filter-btn active" onclick="filterInquiries('ALL')">전체</button>
+            <button class="filter-btn" onclick="filterInquiries('PENDING')">답변 대기</button>
+            <button class="filter-btn" onclick="filterInquiries('ANSWERED')">답변 완료</button>
+            <button class="filter-btn" onclick="filterInquiries('CLOSED')">종료</button>
+        </div>
+
+        <!-- 문의 테이블 -->
+        <div class="inquiry-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 10%;">번호</th>
+                        <th style="width: 40%;">제목</th>
+                        <th style="width: 15%;">작성자</th>
+                        <th style="width: 15%;">상태</th>
+                        <th style="width: 20%;">작성일</th>
+                    </tr>
+                </thead>
+                <tbody id="inquiryTableBody">
+                    <!-- 문의 목록이 여기에 표시됨 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 문의 상세/답변 모달 -->
+    <div id="inquiryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>문의 상세</h2>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div id="modalContent">
+                <!-- 상세 내용이 여기에 표시됨 -->
+            </div>
+        </div>
+    </div>
+
+    <script src="js/admin.js"></script>
+</body>
+</html>

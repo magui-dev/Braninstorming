@@ -1,7 +1,9 @@
 package com.brainstorming.brainstorming_platform.domain.inquiry.controller;
 
+import com.brainstorming.brainstorming_platform.domain.inquiry.dto.InquiryReplyRequestDto;
 import com.brainstorming.brainstorming_platform.domain.inquiry.dto.InquiryRequestDto;
 import com.brainstorming.brainstorming_platform.domain.inquiry.dto.InquiryResponseDto;
+import com.brainstorming.brainstorming_platform.domain.inquiry.dto.InquiryUpdateRequestDto;
 import com.brainstorming.brainstorming_platform.domain.inquiry.entity.Inquiry;
 import com.brainstorming.brainstorming_platform.domain.inquiry.service.InquiryService;
 import lombok.RequiredArgsConstructor;
@@ -71,5 +73,41 @@ public class InquiryController {
         inquiryService.delete(inquiryId);
         // 2 응답
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 문의 사항 수정(사용자)
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<InquiryResponseDto> updateInquiry(
+            @PathVariable("id") Long inquiryId,
+            @RequestBody InquiryUpdateRequestDto requestDto
+    ) {
+        //status 가 PENDING일 때만 수정 가능
+        Inquiry updatedInquiry = inquiryService.update(inquiryId, requestDto);
+        return ResponseEntity.ok(InquiryResponseDto.from(updatedInquiry));
+    }
+
+    /**
+     * 관리자 답변 작성
+     */
+    @PutMapping("/{id}/reply")
+    public ResponseEntity<InquiryResponseDto> replyInquiry(
+            @PathVariable("id") Long inquiryId,
+            @RequestBody InquiryReplyRequestDto requestDto
+    ) {
+        Inquiry repliedInquiry = inquiryService.reply(inquiryId, requestDto);
+        return ResponseEntity.ok(InquiryResponseDto.from(repliedInquiry));
+    }
+
+    /**
+     * 전체 문의 목록(관리자)
+     */
+    @GetMapping("/admin/all")
+    public ResponseEntity<List<InquiryResponseDto>> getAllInquiries() {
+        List<Inquiry> inquiries = inquiryService.findAll();
+        return ResponseEntity.ok(inquiries.stream()
+                .map(InquiryResponseDto::from)
+                .toList());
     }
 }

@@ -41,7 +41,7 @@ public class JwtTokenProvider {
 
     public String createToken(User user) {
 
-        log.info("JWT 토큰 생성 시작 - userId: {}", user.getUserId());
+        log.info("JWT 토큰 생성 시작 - userId: {}, role: {}", user.getUserId(), user.getRole());
 
         //현재시간
         Date now = new Date();
@@ -54,9 +54,10 @@ public class JwtTokenProvider {
         // JWT 토큰 생성
         String token = Jwts.builder()
                 // Payload  설정
-                .subject(String.valueOf(user.getUserId())) // "sub:1
-                .issuedAt(now)                             // "iat : 현재시간
-                .expiration(expiration)                    // "exp : 만료시간
+                .subject(String.valueOf(user.getUserId())) // "sub": "1"
+                .claim("role", user.getRole().name())      // "role": "ADMIN" ← 추가!
+                .issuedAt(now)                             // "iat": 현재시간
+                .expiration(expiration)                    // "exp": 만료시간
 
                 // Signature 설정
                 .signWith(getSignKey())                    // 서명
@@ -115,8 +116,8 @@ public class JwtTokenProvider {
     }
 
     /**
-     * JWT 토큰에서 사용자 ID cncnf
-     *  토큰 -> CLaims -> subject ->userId
+     * JWT 토큰에서 사용자 ID 추출
+     *  토큰 -> Claims -> subject -> userId
      * @param token  JWT
      * @return  사용자 Id (Long)
      */
@@ -141,6 +142,28 @@ public class JwtTokenProvider {
         } catch (Exception e) {
             log.error("userId 추출 실패: {}", e.getMessage());
             throw new RuntimeException("토큰에서 사용자 정보를 추출할 수 없습니다. ", e);
+        }
+    }
+
+    /**
+     * JWT 토큰에서 role 추출
+     */
+    public String getRoleFromToken(String token) {
+        log.info("JWT 토큰에서 role 추출 시작");
+
+        try {
+            Claims claims = Jwts.parser()
+                    .verifyWith(getSignKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+
+            String role = claims.get("role", String.class);
+            log.info("role 추출 성공: {}", role);
+            return role;
+        } catch (Exception e) {
+            log.error("role 추출 실패: {}", e.getMessage());
+            return null;
         }
     }
 }
