@@ -29,4 +29,7 @@ public class Idea extends BaseEntity{
     
     private String purpose; //브레인스토밍 프로세스 Q1의 답변을 저장하는 용도
 
+    //비로그인 사용자 임시 저장용 세션 ID
+    private String guestSessionId;
+
 }

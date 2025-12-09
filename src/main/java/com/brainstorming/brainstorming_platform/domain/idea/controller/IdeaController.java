@@ -5,9 +5,13 @@ import com.brainstorming.brainstorming_platform.domain.idea.dto.IdeaResponseDto;
 import com.brainstorming.brainstorming_platform.domain.idea.entity.Idea;
 import com.brainstorming.brainstorming_platform.domain.idea.service.IdeaService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -68,5 +72,17 @@ public class IdeaController {
         long countIdeas = ideaService.countByUserId(userId);
         // 저장된 카운트 응답
         return ResponseEntity.ok(countIdeas);
+    }
+
+    /**
+     * 로그인 후 게스트아이디어를 사용자에게 연결
+     * POST /api/ideas/link-guest
+     */
+    @PostMapping("/link-guest")
+    public ResponseEntity<Integer> linkGuestIdeas(
+            @RequestParam String guestSessionId,
+            @RequestParam Long userId) {
+        int linkedCount = ideaService.linkGuestIdeasToUser(guestSessionId, userId);
+        return ResponseEntity.ok(linkedCount);
     }
 }

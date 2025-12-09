@@ -13,13 +13,16 @@ app = FastAPI(
     description="AI-powered Brainstorming Module for Java Integration"
 )
 
-# CORS 설정 (Java Spring Boot 연동용)
+# CORS 설정 (환경변수로 동적 설정)
+# 기본값: 로컬 개발용
+allowed_origins = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:8080,http://localhost:3000"
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8080",  # Spring Boot 기본 포트
-        "http://localhost:3000",  # React (나중에)
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -42,6 +45,12 @@ async def root():
         "docs": "/docs",
         "health": "/health"
     }
+
+@app.get("/favicon.ico")
+async def favicon():
+    """favicon 요청 무시 (204 No Content)"""
+    from fastapi.responses import Response
+    return Response(status_code=204)
 
 @app.get("/health")
 async def health_check():

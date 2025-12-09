@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
@@ -14,6 +16,7 @@ public class IdeaResponseDto {
     private String title;
     private String content;
     private String purpose;
+    private LocalDateTime createdAt;  // 추가!
 
     public static IdeaResponseDto from (Idea idea) {
         return new IdeaResponseDto(
@@ -21,7 +24,8 @@ public class IdeaResponseDto {
                 idea.getUserId(),
                 idea.getTitle(),
                 idea.getContent(),
-                idea.getPurpose()
+                idea.getPurpose(),
+                idea.getCreatedAt()  // 추가!
         );
     }
 }

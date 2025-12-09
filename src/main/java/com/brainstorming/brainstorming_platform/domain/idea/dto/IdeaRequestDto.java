@@ -13,6 +13,7 @@ public class IdeaRequestDto {
     private String title;
     private String content;
     private String purpose;
+    private String guestSessionId;
 
     public Idea toEntity() {
         return new Idea(
@@ -20,7 +21,8 @@ public class IdeaRequestDto {
                 userId,
                 title,
                 content,
-                purpose       //아이디어 요청내용
+                purpose,       //아이디어 요청내용
+                guestSessionId
         );
     }
 }

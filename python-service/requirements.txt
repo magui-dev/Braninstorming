@@ -39,15 +39,24 @@ chromadb==0.5.23
 # Utilities
 # ========================================
 python-dateutil==2.9.0.post0
+httpx==0.27.0
+numpy==1.26.4
+duckduckgo-search==6.3.0
 
 # ========================================
 # Notes
 # ========================================
-# 브레인스토밍 모듈 전용 (2025-11-28)
-# - chromadb==0.5.23: 팀플 ChromaDB 데이터 호환
-# - langchain==0.3.27: RAG 시스템
-# - openai==1.57.0: GPT-4o 사용
-# - pydantic==2.12.4: 팀플과 동일 버전
+# 브레인스토밍 모듈 전용 (2025-12-09 업데이트)
+# - chromadb==0.5.23: 영구 RAG (브레인스토밍 기법)
+# - Ephemeral RAG: ChromaDB → JSON 기반으로 전환
+# - httpx==0.27.0: 네이버 API 비동기 호출
+# - numpy==1.26.4: 코사인 유사도 계산
+# - duckduckgo-search==6.3.0: 글로벌 트렌드 검색
+#
+# 트렌드 검색 모듈 추가:
+# - 네이버 뉴스 API
+# - 네이버 데이터랩 API  
+# - DuckDuckGo 검색 (무료, API 키 불필요)
 #
 # 제외된 패키지:
 # - Database & ORM: 메모리 세션 관리만 사용

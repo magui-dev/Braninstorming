@@ -39,7 +39,7 @@ async function checkLoginStatus() {
     
     try {
         // 토큰 유효성 검증
-        const response = await fetch('/api/auth/me', {
+        const response = await fetch(`${CONFIG.SPRING_API_BASE}/auth/me`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -52,6 +52,9 @@ async function checkLoginStatus() {
         currentUser = await response.json();
         console.log('✅ 로그인 확인:', currentUser);
         
+        // 🆕 게스트 아이디어 연결 처리
+        await linkPendingGuestIdeas(currentUser.userId);
+        
         showUserInfo(currentUser);
         await loadMyIdeas(currentUser.userId);
         
@@ -59,6 +62,50 @@ async function checkLoginStatus() {
         console.error('❌ 로그인 확인 실패:', error);
         localStorage.removeItem('token');
         showLoginButton();
+    }
+}
+
+// ========================================
+// 🆕 게스트 아이디어 연결 (로그인 후 처리)
+// ========================================
+async function linkPendingGuestIdeas(userId) {
+    const pendingGuestSessionId = localStorage.getItem('pendingGuestSessionId');
+    
+    if (!pendingGuestSessionId) {
+        return; // 연결할 게스트 아이디어 없음
+    }
+    
+    try {
+        console.log('🔗 게스트 아이디어 연결 시도:', pendingGuestSessionId);
+        
+        const response = await fetch(
+            `${CONFIG.SPRING_API_BASE}/ideas/link-guest?guestSessionId=${encodeURIComponent(pendingGuestSessionId)}&userId=${userId}`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            }
+        );
+        
+        if (!response.ok) {
+            throw new Error('게스트 아이디어 연결 실패');
+        }
+        
+        const linkedCount = await response.json();
+        console.log('✅ 게스트 아이디어 연결 완료:', linkedCount, '개');
+        
+        // localStorage에서 제거
+        localStorage.removeItem('pendingGuestSessionId');
+        
+        if (linkedCount > 0) {
+            alert(`✅ 임시 저장된 아이디어 ${linkedCount}개가 계정에 연결되었습니다!\n\n"나의 아이디어"에서 확인하세요.`);
+        }
+        
+    } catch (error) {
+        console.error('❌ 게스트 아이디어 연결 오류:', error);
+        // 실패해도 localStorage에서 제거 (무한 루프 방지)
+        localStorage.removeItem('pendingGuestSessionId');
     }
 }
 
@@ -140,7 +187,7 @@ async function submitInquiry() {
     const token = localStorage.getItem('token');
     
     try {
-        const response = await fetch('/api/inquiries', {
+        const response = await fetch(`${CONFIG.SPRING_API_BASE}/inquiries`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -173,7 +220,7 @@ async function loadMyIdeas(userId) {
     const token = localStorage.getItem('token');
     
     try {
-        const response = await fetch(`/api/ideas?userId=${userId}`, {
+        const response = await fetch(`${CONFIG.SPRING_API_BASE}/ideas?userId=${userId}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -243,7 +290,7 @@ async function deleteIdea(ideaId, event) {
     const token = localStorage.getItem('token');
     
     try {
-        const response = await fetch(`/api/ideas/${ideaId}`, {
+        const response = await fetch(`${CONFIG.SPRING_API_BASE}/ideas/${ideaId}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -287,7 +334,7 @@ async function showIdeaDetail(ideaId) {
     const token = localStorage.getItem('token');
     
     try {
-        const response = await fetch(`/api/ideas/${ideaId}`, {
+        const response = await fetch(`${CONFIG.SPRING_API_BASE}/ideas/${ideaId}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }

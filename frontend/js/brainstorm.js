@@ -2,8 +2,8 @@
 // 브레인스토밍 JavaScript (Python API 연동)
 // ========================================
 
-// 설정
-const API_BASE_URL = '/api/v1/brainstorming';
+// 설정 - config.js에서 가져옴
+const API_BASE_URL = CONFIG.PYTHON_API_BASE;
 
 // 전역 변수
 let sessionId = null;
@@ -557,20 +557,95 @@ function resetBrainstorming() {
 // 아이디어 저장 (Spring Boot API)
 // ========================================
 async function saveIdeas() {
-    // 1. 로그인 확인
-    const token = localStorage.getItem('token');
-    
-    if (!token) {
-        alert('아이디어를 저장하려면 로그인이 필요합니다.');
-        if (confirm('로그인 페이지로 이동하시겠습니까?')) {
-            location.href = 'index.html';
-        }
+    // 1. 저장할 아이디어 확인
+    if (!window.generatedIdeas || window.generatedIdeas.length === 0) {
+        alert('저장할 아이디어가 없습니다.');
         return;
     }
     
-    // 2. 사용자 정보 가져오기
+    // 2. 로그인 확인
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+        // 비로그인: guestSessionId로 임시 저장
+        await saveIdeasAsGuest();
+        return;
+    }
+    
+    // 3. 로그인 상태: 기존 방식으로 저장
+    await saveIdeasAsUser(token);
+}
+
+// ========================================
+// 비로그인 사용자: 게스트로 임시 저장
+// ========================================
+async function saveIdeasAsGuest() {
     try {
-        const userResponse = await fetch('/api/auth/me', {
+        showLoading('아이디어를 임시 저장하는 중...');
+        
+        // guestSessionId = Python 세션 ID 사용
+        const guestSessionId = sessionId;
+        
+        // 각 아이디어를 guestSessionId로 저장
+        const savePromises = window.generatedIdeas.map(async (idea, index) => {
+            const ideaData = {
+                userId: null,  // 비로그인이므로 null
+                guestSessionId: guestSessionId,
+                title: `${idea.title}`,
+                content: JSON.stringify({
+                    description: idea.description,
+                    analysis: idea.analysis || '',
+                    generatedAt: new Date().toISOString()
+                }),
+                purpose: sessionId || 'brainstorm_session'
+            };
+            
+            const response = await fetch(`${CONFIG.SPRING_API_BASE}/ideas`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(ideaData)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`아이디어 ${index + 1} 저장 실패`);
+            }
+            
+            return await response.json();
+        });
+        
+        await Promise.all(savePromises);
+        
+        // localStorage에 guestSessionId 저장 (로그인 후 연결용)
+        localStorage.setItem('pendingGuestSessionId', guestSessionId);
+        
+        hideLoading();
+        
+        // Ephemeral RAG 세션 삭제
+        await cleanupEphemeralSession();
+        
+        alert('✅ 아이디어가 임시 저장되었습니다!\n\n로그인하시면 "나의 아이디어"에서 확인할 수 있습니다.');
+        
+        // 로그인 페이지로 이동
+        if (confirm('지금 로그인하시겠습니까?')) {
+            location.href = 'index.html';
+        }
+        
+    } catch (error) {
+        console.error('❌ 아이디어 임시 저장 오류:', error);
+        hideLoading();
+        alert('❌ 아이디어 저장에 실패했습니다.\n\n' + error.message);
+    }
+}
+
+// ========================================
+// 로그인 사용자: userId로 저장
+// ========================================
+async function saveIdeasAsUser(token) {
+    try {
+        // 사용자 정보 가져오기
+        const userResponse = await fetch(`${CONFIG.SPRING_API_BASE}/auth/me`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -582,18 +657,13 @@ async function saveIdeas() {
         
         const currentUser = await userResponse.json();
         
-        // 3. 아이디어 저장
-        if (!window.generatedIdeas || window.generatedIdeas.length === 0) {
-            alert('저장할 아이디어가 없습니다.');
-            return;
-        }
-        
         showLoading('아이디어를 저장하는 중...');
         
         // 각 아이디어를 개별적으로 저장
         const savePromises = window.generatedIdeas.map(async (idea, index) => {
             const ideaData = {
                 userId: currentUser.userId,
+                guestSessionId: null,
                 title: `${idea.title}`,
                 content: JSON.stringify({
                     description: idea.description,
@@ -603,7 +673,7 @@ async function saveIdeas() {
                 purpose: sessionId || 'brainstorm_session'
             };
             
-            const response = await fetch('/api/ideas', {
+            const response = await fetch(`${CONFIG.SPRING_API_BASE}/ideas`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -623,21 +693,8 @@ async function saveIdeas() {
         
         hideLoading();
         
-        // 4. Ephemeral RAG 세션 삭제
-        try {
-            console.log('🗑️ Ephemeral RAG 세션 삭제 시도...');
-            const deleteResponse = await fetch(`${API_BASE_URL}/session/${sessionId}`, {
-                method: 'DELETE'
-            });
-            
-            if (deleteResponse.ok) {
-                console.log('✅ Ephemeral RAG 세션 삭제 완료');
-            } else {
-                console.warn('⚠️ Ephemeral RAG 세션 삭제 실패 (무시)');
-            }
-        } catch (deleteError) {
-            console.warn('⚠️ Ephemeral RAG 세션 삭제 오류 (무시):', deleteError);
-        }
+        // Ephemeral RAG 세션 삭제
+        await cleanupEphemeralSession();
         
         alert('✅ 모든 아이디어가 저장되었습니다!\n\n홈 화면의 "나의 아이디어"에서 확인할 수 있습니다.');
         
@@ -648,5 +705,25 @@ async function saveIdeas() {
         console.error('❌ 아이디어 저장 오류:', error);
         hideLoading();
         alert('❌ 아이디어 저장에 실패했습니다.\n\n' + error.message);
+    }
+}
+
+// ========================================
+// Ephemeral RAG 세션 정리
+// ========================================
+async function cleanupEphemeralSession() {
+    try {
+        console.log('🗑️ Ephemeral RAG 세션 삭제 시도...');
+        const deleteResponse = await fetch(`${API_BASE_URL}/session/${sessionId}`, {
+            method: 'DELETE'
+        });
+        
+        if (deleteResponse.ok) {
+            console.log('✅ Ephemeral RAG 세션 삭제 완료');
+        } else {
+            console.warn('⚠️ Ephemeral RAG 세션 삭제 실패 (무시)');
+        }
+    } catch (deleteError) {
+        console.warn('⚠️ Ephemeral RAG 세션 삭제 오류 (무시):', deleteError);
     }
 }

@@ -6,6 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
@@ -17,6 +19,7 @@ public class InquiryResponseDto {
     private String content;
     private InquiryStatus status;
     private String reply;
+    private LocalDateTime createdAt;  // 추가!
 
     public static InquiryResponseDto from (Inquiry inquiry) {
         return new InquiryResponseDto(
@@ -25,7 +28,8 @@ public class InquiryResponseDto {
                 inquiry.getTitle(),
                 inquiry.getContent(),
                 inquiry.getStatus(),
-                inquiry.getReply()
+                inquiry.getReply(),
+                inquiry.getCreatedAt()  // 추가!
         );
     }
 }

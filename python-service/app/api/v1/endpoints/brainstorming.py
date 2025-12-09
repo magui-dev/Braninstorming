@@ -41,6 +41,11 @@ from session_manager import SessionManager
 from ephemeral_rag import EphemeralRAG
 from domain_hints import get_domain_hint, format_hint_for_prompt
 
+# 트렌드 검색 모듈 import
+from search.naver_news import NaverNewsSearcher
+from search.duckduckgo import DuckDuckGoSearcher
+from search.naver_datalab import NaverDataLabSearcher
+
 # ChromaDB import (영구 RAG 전용)
 import chromadb
 from chromadb.config import Settings as ChromaSettings
@@ -82,6 +87,31 @@ try:
 except Exception as e:
     logger.warning(f"⚠️  영구 RAG 컬렉션 로드 실패: {e}")
     permanent_collection = None
+
+# ============================================================
+# 트렌드 검색기 초기화 (네이버 뉴스, DuckDuckGo, 네이버 데이터랩)
+# ============================================================
+trend_searcher = None
+duckduckgo_searcher = None
+datalab_searcher = None
+
+try:
+    trend_searcher = NaverNewsSearcher()
+    logger.info("✅ 네이버 뉴스 트렌드 검색 초기화 완료")
+except Exception as e:
+    logger.warning(f"⚠️  네이버 뉴스 트렌드 검색 초기화 실패: {e}")
+
+try:
+    duckduckgo_searcher = DuckDuckGoSearcher()
+    logger.info("✅ DuckDuckGo 트렌드 검색 초기화 완료")
+except Exception as e:
+    logger.warning(f"⚠️  DuckDuckGo 트렌드 검색 초기화 실패: {e}")
+
+try:
+    datalab_searcher = NaverDataLabSearcher()
+    logger.info("✅ 네이버 데이터랩 트렌드 검색 초기화 완료")
+except Exception as e:
+    logger.warning(f"⚠️  네이버 데이터랩 트렌드 검색 초기화 실패: {e}")
 
 
 # === Pydantic 모델 ===
@@ -134,6 +164,64 @@ class IdeaResponse(BaseModel):
 class DeleteResponse(BaseModel):
     """세션 삭제 응답"""
     message: str
+
+
+# === 트렌드 검색 헬퍼 함수 ===
+
+async def fetch_trend_keywords(purpose: str) -> List[str]:
+    """
+    트렌드 키워드 검색 (네이버 뉴스 + DuckDuckGo + 네이버 데이터랩)
+    
+    Args:
+        purpose: Q1 목적
+        
+    Returns:
+        List[str]: 트렌드 키워드 리스트
+    """
+    all_keywords = []
+    
+    # 1. 네이버 뉴스 검색
+    if trend_searcher:
+        try:
+            logger.info("   🔍 네이버 뉴스 트렌드 검색 중...")
+            naver_keywords = await trend_searcher.extract_trend_keywords(purpose, num_articles=5)
+            if naver_keywords:
+                logger.info(f"      ✅ 네이버 뉴스: {len(naver_keywords)}개 발견")
+                all_keywords.extend(naver_keywords)
+        except Exception as e:
+            logger.warning(f"      ⚠️  네이버 뉴스 검색 실패: {e}")
+    
+    # 2. DuckDuckGo 검색 (글로벌)
+    if duckduckgo_searcher:
+        try:
+            logger.info("   🔍 DuckDuckGo 글로벌 트렌드 검색 중...")
+            ddg_keywords = await duckduckgo_searcher.extract_trend_keywords(purpose, num_articles=5)
+            if ddg_keywords:
+                logger.info(f"      ✅ DuckDuckGo: {len(ddg_keywords)}개 발견")
+                all_keywords.extend(ddg_keywords)
+        except Exception as e:
+            logger.warning(f"      ⚠️  DuckDuckGo 검색 실패: {e}")
+    
+    # 3. 네이버 데이터랩 검색
+    if datalab_searcher:
+        try:
+            logger.info("   🔍 네이버 데이터랩 트렌드 검색 중...")
+            datalab_keywords = await datalab_searcher.extract_trend_keywords(purpose)
+            if datalab_keywords:
+                logger.info(f"      ✅ 네이버 데이터랩: {len(datalab_keywords)}개 발견")
+                all_keywords.extend(datalab_keywords)
+        except Exception as e:
+            logger.warning(f"      ⚠️  네이버 데이터랩 검색 실패: {e}")
+    
+    # 4. 중복 제거
+    unique_keywords = list(dict.fromkeys(all_keywords))
+    
+    if unique_keywords:
+        logger.info(f"   ✅ 총 트렌드 키워드 {len(unique_keywords)}개: {unique_keywords[:10]}")
+    else:
+        logger.info("   ℹ️  트렌드 키워드 없음")
+    
+    return unique_keywords
 
 
 # === API 엔드포인트 ===
@@ -348,14 +436,10 @@ async def submit_associations(
         logger.info(f"📝 자유연상 입력 시작: {session_id}")
         logger.info(f"   키워드: {request.associations}")
         
-        # Ephemeral RAG 초기화 (ChromaDB 기반)
-        ephemeral_rag = EphemeralRAG(
-            session_id=session_id,
-            collection_name=session['chroma_collection'],
-            chroma_client=chroma_client
-        )
+        # Ephemeral RAG 초기화 (JSON 기반)
+        ephemeral_rag = EphemeralRAG(session_id=session_id)
         
-        # 임베딩 및 ChromaDB 저장
+        # 임베딩 및 JSON 저장
         ephemeral_rag.add_associations(request.associations)
         
         # 세션에 저장
@@ -365,7 +449,7 @@ async def submit_associations(
         })
         
         logger.info(f"✅ 자유연상 입력 완료: {len(request.associations)}개 키워드")
-        logger.info(f"   📁 컬렉션: {session['chroma_collection']}")
+        logger.info(f"   📁 세션: {session_id}")
         
         return AssociationsResponse(
             message="자유연상 입력이 완료되었습니다.",
@@ -405,12 +489,8 @@ async def generate_ideas(
         logger.info(f"   목적: {purpose}")
         logger.info(f"   키워드: {associations}")
         
-        # Ephemeral RAG 초기화 (ChromaDB 기반)
-        ephemeral_rag = EphemeralRAG(
-            session_id=session_id,
-            collection_name=session['chroma_collection'],
-            chroma_client=chroma_client
-        )
+        # Ephemeral RAG 초기화 (JSON 기반)
+        ephemeral_rag = EphemeralRAG(session_id=session_id)
         
         # Q3 연상 키워드 추출 (유사도 기반)
         keywords_data = ephemeral_rag.extract_keywords_by_similarity(
@@ -421,6 +501,15 @@ async def generate_ideas(
         # 키워드만 추출
         extracted_keywords = [kw['keyword'] for kw in keywords_data]
         logger.info(f"   🔍 추출된 키워드: {extracted_keywords}")
+        
+        # 트렌드 키워드 검색 (네이버 뉴스, DuckDuckGo, 네이버 데이터랩)
+        logger.info("   🌐 트렌드 키워드 검색 시작...")
+        trend_keywords = await fetch_trend_keywords(purpose)
+        
+        # 트렌드 키워드 필터링 (사용자 키워드 기준)
+        if trend_keywords:
+            trend_keywords = ephemeral_rag.filter_trend_keywords(trend_keywords, top_k=10)
+            logger.info(f"   🎯 필터링된 트렌드 키워드: {trend_keywords}")
         
         # 영구 RAG에서 브레인스토밍 기법 검색 (ChromaDB)
         rag_context = ""
@@ -448,11 +537,19 @@ async def generate_ideas(
         hint_text = format_hint_for_prompt(domain_hint) if domain_hint else ""
         
         # 아이디어 생성 프롬프트
+        trend_str = ", ".join(trend_keywords) if trend_keywords else "없음"
+        
         prompt = f"""**역할**: 당신은 창의적이면서도 현실적인 기획자입니다.
 
 **목적**: "{purpose}"
 
-**사용자의 연상 키워드**: {', '.join(extracted_keywords)}
+**🔴 핵심: 사용자 브레인스토밍 키워드 (비중 80%)**
+{', '.join(extracted_keywords)}
+※ 위 키워드는 사용자가 직접 떠올린 것입니다. 이 키워드를 중심으로 아이디어를 구성하세요.
+
+**🔵 참고: 최신 트렌드 키워드 (비중 20%)**
+{trend_str}
+※ 트렌드는 시의성 추가용으로만 살짝 활용하세요.
 
 **브레인스토밍 기법 (필수 활용)**:
 
@@ -519,35 +616,48 @@ async def generate_ideas(
 
 **출력 형식**:
 
-아이디어 1: [구체적인 제목]
+아이디어 1: [해결책을 함축한 구체적 제목]
 
-💡 핵심 문제:
-[사용자가 실제로 겪는 구체적 불편함, 2-3줄]
+📌 상황과 문제
+[누가/어떤 사람이] [어떤 상황에서] [무엇 때문에] 불편함을 겪고 있습니다.
+구체적으로 설명하면, [문제의 핵심 원인]으로 인해 [어떤 결과/손해]가 발생합니다.
+(3-4줄로 상황을 생생하게 묘사)
 
-✨ 개선 방안:
-[이 아이디어가 문제를 어떻게 해결하는지, 2-3줄]
+💡 해결 아이디어: [위 제목을 다시 언급]
+이 문제를 해결하기 위해 [제목의 핵심 개념]을 제안합니다.
+[구체적으로 어떻게 작동하는지], [사용자가 어떤 행동을 하면 어떤 결과가 나오는지] 설명합니다.
+(3-4줄로 솔루션의 작동 방식을 자연스럽게 연결)
 
-🎯 기대 효과:
-[이 아이디어로 얻을 수 있는 구체적인 효과, 2-3줄]
+🎯 기대 효과
+이 아이디어를 적용하면:
+- [첫 번째 구체적인 변화/개선점]
+- [두 번째 구체적인 변화/개선점]
+(각 효과는 위 문제와 직접 연결되어야 함)
 
-🎨 발상 기법:
-[이 아이디어를 떠올릴 때 사용한 브레인스토밍 기법과 사고 과정]
+🎨 발상 기법
+[사용한 브레인스토밍 기법명]을 활용했습니다.
+[그 기법을 어떻게 적용해서 이 아이디어가 나왔는지 한 줄로 설명]
 
-📊 분석 결과:
+📊 분석 결과
 • 강점: [2개, 각 1줄]
-• 약점: [2개, 각 1줄]
+• 약점: [2개, 각 1줄]  
 • 기회: [2개, 각 1줄]
 • 위협: [2개, 각 1줄]
 
 ---
 
-아이디어 2: [구체적인 제목]
+아이디어 2: [해결책을 함축한 구체적 제목]
 (동일한 형식)
 
 ---
 
-아이디어 3: [구체적인 제목] (선택)
+아이디어 3: [해결책을 함축한 구체적 제목] (선택)
 (동일한 형식)
+
+**중요**: 
+- 제목은 반드시 "해결책"을 함축해야 합니다 (예: "유튜브 클립 자동저장 북마크")
+- "상황과 문제"에서 제시한 문제가 "해결 아이디어"에서 직접 해결되어야 합니다
+- 각 섹션이 논리적으로 연결되어 하나의 스토리처럼 읽혀야 합니다
 
 **반드시 2-3개의 완전한 아이디어를 생성해야 합니다.**
 """
@@ -593,21 +703,21 @@ async def generate_ideas(
             
             # 섹션 구분
             elif current_idea:
-                if '💡 핵심 문제' in line or '핵심 문제:' in line:
+                if '📌 상황과 문제' in line or '상황과 문제' in line:
                     current_section = 'problem'
-                    current_idea['description'] += '\n💡 핵심 문제:\n'
-                elif '✨ 개선 방안' in line or '개선 방안:' in line:
+                    current_idea['description'] += '\n📌 상황과 문제\n'
+                elif '💡 해결 아이디어' in line or '해결 아이디어' in line:
                     current_section = 'solution'
-                    current_idea['description'] += '\n\n✨ 개선 방안:\n'
-                elif '🎯 기대 효과' in line or '기대 효과:' in line:
+                    current_idea['description'] += '\n\n💡 해결 아이디어\n'
+                elif '🎯 기대 효과' in line or '기대 효과' in line:
                     current_section = 'effect'
-                    current_idea['description'] += '\n\n🎯 기대 효과:\n'
-                elif '🎨 발상 기법' in line or '발상 기법:' in line:
+                    current_idea['description'] += '\n\n🎯 기대 효과\n'
+                elif '🎨 발상 기법' in line or '발상 기법' in line:
                     current_section = 'technique'
-                    current_idea['description'] += '\n\n🎨 발상 기법:\n'
+                    current_idea['description'] += '\n\n🎨 발상 기법\n'
                 elif '📊 분석 결과' in line or '분석 결과:' in line or '📊 SWOT 분석' in line:
                     current_section = 'analysis'
-                    current_idea['description'] += '\n\n📊 분석 결과:\n'
+                    current_idea['description'] += '\n\n📊 분석 결과\n'
                 
                 # 내용 추가
                 elif current_section in ['problem', 'solution', 'effect', 'technique']:
@@ -677,18 +787,14 @@ async def delete_session(
     try:
         logger.info(f"🗑️  세션 삭제 시작: {session_id}")
         
-        # Ephemeral RAG 데이터 삭제 (ChromaDB)
-        ephemeral_rag = EphemeralRAG(
-            session_id=session_id,
-            collection_name=session['chroma_collection'],
-            chroma_client=chroma_client
-        )
-        deleted = ephemeral_rag.delete_collection()
+        # Ephemeral RAG 데이터 삭제 (JSON 기반)
+        ephemeral_rag = EphemeralRAG(session_id=session_id)
+        deleted = ephemeral_rag.delete_session_data()
         
         if deleted:
-            logger.info(f"   ✅ 컬렉션 삭제: {session['chroma_collection']}")
+            logger.info(f"   ✅ 세션 데이터 삭제: {session_id}")
         else:
-            logger.info("   ℹ️  삭제할 컬렉션 없음")
+            logger.info("   ℹ️  삭제할 세션 데이터 없음")
         
         # 세션 디렉토리 삭제
         ephemeral_dir = Path(session['directory'])

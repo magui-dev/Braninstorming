@@ -7,6 +7,7 @@ import com.brainstorming.brainstorming_platform.domain.inquiry.entity.InquirySta
 import com.brainstorming.brainstorming_platform.domain.inquiry.repository.InquiryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -49,6 +50,7 @@ public class InquiryService {
      * 문의사항 수정(사용자)
      * -PENDING 상태일때 수정가능
      */
+    @Transactional
     public Inquiry update(Long inquiryId, InquiryUpdateRequestDto dto) {
         // 1. 문의 조회
         Inquiry inquiry = inquiryRepository.findById(inquiryId)
@@ -69,6 +71,7 @@ public class InquiryService {
     /**
      * 관리자 답변 작성
      */
+    @Transactional
     public Inquiry reply(Long inquiryId, InquiryReplyRequestDto dto) {
         // 1. 문의 조회
         Inquiry inquiry = inquiryRepository.findById(inquiryId)

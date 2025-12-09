@@ -4,6 +4,7 @@ import com.brainstorming.brainstorming_platform.domain.idea.entity.Idea;
 import com.brainstorming.brainstorming_platform.domain.idea.repository.IdeaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -48,6 +49,28 @@ public class IdeaService {
      */
     public long countByUserId(Long userId) {
         return ideaRepository.countByUserId(userId);
+    }
+
+    /**
+     * 게스트 세션의 아이디어를 로그인한 사용자에게 연결
+     */
+    @Transactional
+    public int linkGuestIdeasToUser(String guestSessionId, Long userId) {
+        List<Idea> guestIdeas = ideaRepository.findByGuestSessionId(guestSessionId);
+
+        for (Idea idea : guestIdeas) {
+            //기존 아이디어에 userId설정하고 guestSessionId제거
+            Idea linkedIdea = new Idea(
+                    idea.getIdeaId(),
+                    userId,
+                    idea.getTitle(),
+                    idea.getContent(),
+                    idea.getPurpose(),
+                    null // guestSessionId 제거
+            );
+            ideaRepository.save(linkedIdea);
+        }
+        return guestIdeas.size(); //연결된 아이디어 개수 반환
     }
 
 }
